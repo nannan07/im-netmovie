@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.allmsi.netmovie.dao.MovieDailyMapper">
+	<resultMap id="BaseResultMap" type="com.allmsi.netmovie.model.MovieDaily">
+		<id column="id" property="id" jdbcType="VARCHAR" />
+		<result column="movieId" property="movieId" jdbcType="VARCHAR" />
+		<result column="movieName" property="movieName" jdbcType="VARCHAR" />
+		<result column="dailyDate" property="dailyDate" jdbcType="VARCHAR" />
+		<result column="releaseDate" property="releaseDate" jdbcType="VARCHAR" />
+		<result column="releaseDays" property="releaseDays" jdbcType="SMALLINT" />
+		<result column="dailyBox" property="dailyBox" jdbcType="DECIMAL" />
+		<result column="sumBox" property="sumBox" jdbcType="DECIMAL" />
+		<result column="topOrder" property="topOrder" jdbcType="TINYINT" />
+		<result column="createdAt" property="createdAt" jdbcType="TIMESTAMP" />
+		<result column="uplift" property="uplift" jdbcType="VARCHAR" />
+		<result column="growthRate" property="growthRate" jdbcType="VARCHAR" />
+		<result column="topCount" property="topCount" jdbcType="INTEGER" />
+		<result column="startDate" property="startDate" jdbcType="VARCHAR" />
+		<result column="endDate" property="endDate" jdbcType="VARCHAR" />
+	</resultMap>
+	<select id="selectByDailyDate" resultMap="BaseResultMap"
+		parameterType="java.lang.String">
+		select
+		md.movieId,md.movieName,md.dailyDate,md.releaseDate,md.releaseDays,md.dailyBox,md.sumBox,md.topOrder,md.growthRate,
+		(a.pretopOrder-md.topOrder) as uplift from movie_daily md
+		left join
+		(select topOrder as pretopOrder,movieId,movieName from movie_daily
+		WHERE dailyDate &lt; #{_parameter,jdbcType=VARCHAR}
+		ORDER BY dailyDate
+		DESC,topOrder
+		limit 0,10) a
+		on md.movieId = a.movieId
+		WHERE md.dailyDate
+		= #{_parameter,jdbcType=VARCHAR}
+		ORDER BY md.topOrder
+	</select>
+	<select id="movieDailyBoxSelect" resultMap="BaseResultMap"
+		parameterType="java.util.Map">
+		SELECT movieId,movieName, MAX(dailyDate) AS dailyDate,
+		MAX(releaseDate) AS releaseDate,
+		MAX(releaseDays) AS releaseDays,
+		SUM(dailyBox) as dailyBox, MAX(sumBox) as sumBox
+		FROM movie_daily
+		WHERE
+		dailyDate BETWEEN #{startDate,jdbcType=VARCHAR} AND
+		#{stopDate,jdbcType=VARCHAR}
+		<if test="startReleaseDate != null  and stopReleaseDate !=''">
+			AND releaseDate BETWEEN #{startReleaseDate,jdbcType=VARCHAR}
+			AND #{stopReleaseDate,jdbcType=VARCHAR}
+		</if>
+		GROUP BY movieId, movieName
+		ORDER BY
+		dailyBox DESC
+		LIMIT 0,#{limit}
+	</select>
+	<select id="movieBoxSumSelect" resultMap="BaseResultMap"
+		parameterType="java.util.Map">
+		select movieId,movieName,
+		MAX(releaseDate) as releaseDate,MAX(dailyBox)
+		as dailyBox,MIN(topOrder) as topOrder,MAX(sumBox) as sumBox
+		from
+		movie_daily
+		<if test="startDate != null  and startDate !=''">
+			WHERE releaseDate BETWEEN #{startDate,jdbcType=VARCHAR}
+			AND
+			#{stopDate,jdbcType=VARCHAR}
+		</if>
+		GROUP BY movieId,movieName
+		ORDER BY sumBox DESC
+		LIMIT 0,#{limit}
+	</select>
+	<select id="selectByMovieId" resultMap="BaseResultMap"
+		parameterType="java.lang.String">
+		select dailyDate,dailyBox,sumBox,topOrder
+		from movie_daily
+		where movieId=#{movieId,jdbcType=VARCHAR}
+		order by
+		dailyDate desc
+	</select>
+	<select id="selectSumBox" resultType="java.math.BigDecimal"
+		parameterType="java.lang.String">
+		select MAX(sumBox) from movie_daily
+		where
+		movieId=#{movieId,jdbcType=VARCHAR}
+	</select>
+	<select id="topOrderCountSelect" resultMap="BaseResultMap"
+		parameterType="java.util.Map">
+		select movieId,movieName,releaseDate,COUNT(id) as topCount
+		from
+		movie_daily
+		<if test="startDate != null  and startDate !=''">
+			WHERE dailyDate BETWEEN #{startDate,jdbcType=VARCHAR} AND
+			#{stopDate,jdbcType=VARCHAR}
+		</if>
+		GROUP BY movieId,movieName,releaseDate
+		ORDER BY topCount
+		DESC,releaseDate
+		LIMIT 0,#{limit}
+	</select>
+	<select id="topOneSumSelect" resultMap="BaseResultMap"
+		parameterType="java.util.Map">
+		select movieId,movieName,releaseDate,COUNT(id) as topCount
+		from
+		movie_daily WHERE topOrder=1
+		<if test="startDate != null  and startDate !=''">
+			and dailyDate BETWEEN #{startDate,jdbcType=VARCHAR} AND
+			#{stopDate,jdbcType=VARCHAR}
+		</if>
+		GROUP BY movieId,movieName,releaseDate
+		ORDER BY topCount
+		DESC,releaseDate
+		LIMIT 0,#{limit}
+	</select>
+	<select id="continuityTopOneSelect" resultMap="BaseResultMap"
+		parameterType="java.util.Map">
+		SELECT movieid, movieName, releaseDate, max(days)
+		topCount, min(login_day) startDate, max(login_day) endDate
+		FROM (
+		SELECT movieid, movieName, releaseDate,
+		@cont_day := (
+		CASE
+		WHEN (
+		@last_movieid = movieid
+		AND DATEDIFF(created_ts, @last_dt) = 1
+		) THEN
+		(@cont_day + 1)
+		WHEN (
+		@last_movieid = movieid
+		AND DATEDIFF(created_ts, @last_dt) &lt; 1
+		) THEN
+		(@cont_day + 0)
+		ELSE
+		1
+		END
+		) AS days,
+		( @cont_ix := (@cont_ix + IF(@cont_day = 1, 1, 0)) ) AS cont_ix,
+		@last_movieid := movieid, @last_dt := created_ts login_day
+		FROM
+		( SELECT movieid, movieName, releaseDate, DATE(dailyDate) created_ts
+		FROM movie_daily
+		WHERE movieid IS NOT NULL and topOrder = #{topOrder,jdbcType=INTEGER}
+		ORDER BY movieid, created_ts ) AS t,
+		(SELECT @last_movieid := '', @last_dt := '', @cont_ix := 0, @cont_day := 0 )
+		AS t1
+		) AS t2
+		GROUP BY movieid, cont_ix
+		ORDER BY topCount DESC
+		LIMIT 0,#{limit}
+	</select>
+	<select id="compareInfoSelect" resultMap="BaseResultMap"
+		parameterType="java.util.Map">
+		select md.movieId,vd.date as
+		dailyDate,md.dailyBox,md.sumBox,md.topOrder from valid_dates vd
+		left join
+		(select movieId,movieName,dailyDate,dailyBox,sumBox,topOrder,releaseDate from
+		movie_daily where movieId = #{moviedId,jdbcType=VARCHAR}) md
+		on vd.date
+		= md.dailyDate
+		where vd.flag=1 and vd.date between
+		#{releaseDate,jdbcType=VARCHAR} and (select MAX(dailyDate) from
+		movie_daily where movieId =#{moviedId,jdbcType=VARCHAR})
+		ORDER BY
+		vd.date
+	</select>
+</mapper>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.allmsi.netmovie.dao.MovieSubsidiaryMapper" >
+  <resultMap id="BaseResultMap" type="com.allmsi.netmovie.model.MovieSubsidiary" >
+    <id column="id" property="id" jdbcType="VARCHAR" />
+    <result column="movieId" property="movieId" jdbcType="VARCHAR" />
+    <result column="summary" property="summary" jdbcType="VARCHAR" />
+  </resultMap>
+  <sql id="Base_Column_List" >
+    id, movieId, summary
+  </sql>
+  <select id="selectByPrimaryKey" resultMap="BaseResultMap" parameterType="java.lang.String" >
+    select 
+    <include refid="Base_Column_List" />
+    from movie_subsidiary
+    where id = #{id,jdbcType=VARCHAR}
+  </select>
+</mapper>

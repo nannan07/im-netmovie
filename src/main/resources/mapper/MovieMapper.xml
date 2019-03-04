@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.allmsi.netmovie.dao.MovieMapper">
+	<resultMap id="BaseResultMap" type="com.allmsi.netmovie.model.Movie">
+		<id column="id" property="id" jdbcType="VARCHAR" />
+		<result column="movieId" property="movieId" jdbcType="VARCHAR" />
+		<result column="movieName" property="movieName" jdbcType="VARCHAR" />
+		<result column="releaseDate" property="releaseDate" jdbcType="VARCHAR" />
+		<result column="duration" property="duration" jdbcType="INTEGER" />
+		<result column="createdAt" property="createdAt" jdbcType="TIMESTAMP" />
+
+		<result column="summary" property="summary" jdbcType="VARCHAR" />
+		<result column="movieType" property="movieType" jdbcType="VARCHAR" />
+		<result column="sumBox" property="sumBox" jdbcType="DECIMAL" />
+	</resultMap>
+	<select id="selectByPrimaryKey" resultMap="BaseResultMap"
+		parameterType="java.lang.String">
+		select m.movieId,m.movieName,m.releaseDate,m.duration,ms.summary,a.movieType
+		from movie m
+		left JOIN
+		(SELECT movieId,GROUP_CONCAT(typeName ORDER BY orderNum) as movieType FROM
+		movie_type WHERE movieId= #{movieId,jdbcType=VARCHAR}) a
+		on m.movieId = a.movieId
+		left join movie_subsidiary ms on m.movieId = ms.movieId
+		where
+		m.movieId=#{movieId,jdbcType=VARCHAR}
+	</select>
+	<select id="movieListCountSelect" resultType="java.lang.Integer"
+		parameterType="java.util.List">
+		select count(m.id)
+		from movie m
+		left join (select movieId,MAX(sumBox) as sumBox from movie_daily GROUP BY movieId,movieName) md
+		on m.movieId = md.movieId 
+		LEFT JOIN (SELECT movieId,GROUP_CONCAT(typeName ORDER BY orderNum) as movieType FROM movie_type GROUP BY movieid) a 
+		on m.movieId = a.movieId
+		<where>
+			<foreach collection="list" index="index" item="item" open="(" separator="or" close=")">
+				m.movieName like CONCAT('%', #{item}, '%') or FIND_IN_SET(#{item} ,a.movieType)
+			</foreach>
+		</where>
+	</select>
+	<select id="movieListSelect" resultMap="BaseResultMap"
+		parameterType="java.util.List">
+		select m.movieId,m.movieName,m.releaseDate,m.duration,md.sumBox,a.movieType
+		from movie m
+		left join (select movieId,MAX(sumBox) as sumBox from movie_daily GROUP BY movieId,movieName) md
+		on m.movieId = md.movieId 
+		LEFT JOIN (SELECT movieId,GROUP_CONCAT(typeName ORDER BY orderNum) as movieType FROM movie_type GROUP BY movieid) a 
+		on m.movieId = a.movieId
+		<where>
+			<foreach collection="list" index="index" item="item" open="(" separator="or" close=")">
+				m.movieName like CONCAT('%', #{item}, '%') or FIND_IN_SET(#{item} ,a.movieType)
+			</foreach>
+		</where>
+		ORDER BY m.releaseDate desc
+	</select>
+	<select id="compareInfoSelect" resultMap="BaseResultMap"
+		parameterType="java.util.List">
+		select m.movieId,m.movieName,m.releaseDate,m.duration,md.sumBox,a.movieType
+		from movie m
+		left join (select movieId,MAX(sumBox) as sumBox from movie_daily GROUP BY movieId,movieName) md
+		on m.movieId = md.movieId 
+		LEFT JOIN (SELECT movieId,GROUP_CONCAT(typeName ORDER BY orderNum) as movieType FROM movie_type GROUP BY movieid) a 
+		on m.movieId = a.movieId
+		where m.movieId in
+		<foreach collection="list" index="index" item="item" open="(" separator="," close=")">
+               #{item}       
+       </foreach> 
+	</select>
+</mapper>

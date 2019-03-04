@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.allmsi.netmovie.dao.movieTypeMapper" >
+  <resultMap id="BaseResultMap" type="com.allmsi.netmovie.model.movieType" >
+    <id column="id" property="id" jdbcType="VARCHAR" />
+    <result column="movieId" property="movieId" jdbcType="VARCHAR" />
+    <result column="typeId" property="typeId" jdbcType="VARCHAR" />
+    <result column="typeName" property="typeName" jdbcType="VARCHAR" />
+    <result column="orderNum" property="orderNum" jdbcType="INTEGER" />
+  </resultMap>
+  <sql id="Base_Column_List" >
+    id, movieId, typeId, typeName, orderNum
+  </sql>
+  <select id="selectByPrimaryKey" resultMap="BaseResultMap" parameterType="java.lang.String" >
+    select 
+    <include refid="Base_Column_List" />
+    from movie_type
+    where id = #{id,jdbcType=VARCHAR}
+  </select>
+</mapper>
